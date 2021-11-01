@@ -11,8 +11,8 @@ export rand
 function minvol(X::AbstractMatrix, tol::Real=1e-7, KKY::Integer=0, maxit::Integer=100000)
     n, m = size(X)
 
-    n100 = max(n, 100);
-    n50000 = max(n, 50000);
+    n100 = max(n, 100)
+    n50000 = max(n, 50000)
 
     mxv = zeros(1, maxit)
     mnv = zeros(1, maxit)
@@ -30,13 +30,13 @@ function minvol(X::AbstractMatrix, tol::Real=1e-7, KKY::Integer=0, maxit::Intege
 
     # Initialize Cholesky Factor
     upos = findall(u .> 0)
-    A = Diagonal(sqrt.(u[upos])) * X[:, upos]
+    A = Diagonal(sqrt.(u[upos])) * transpose(X[:, upos])
     _, R = qr(A)
     R = Cholesky(R, :U, 0)
     factor = 1
 
     RX = R.U' \ X
-    var = sum(RX .* RX, dims=1) |> vec
+    var = vec(sum(RX .* RX; dims=1))
     maxvar, maxj = findmax(var)
 
     act = [1:m;]
@@ -46,7 +46,7 @@ function minvol(X::AbstractMatrix, tol::Real=1e-7, KKY::Integer=0, maxit::Intege
 
     # Use the Harman-Pronzato test to see if columns of X can be eliminated.
     ept = maxvar - n
-    thresh = n * (1 + ept / 2 - (ept * (4 + ept - 4 / n))^.5 / 2)
+    thresh = n * (1 + ept / 2 - (ept * (4 + ept - 4 / n))^0.5 / 2)
     e = findall((var .> thresh) .| (u .> 1e-8))
     act = act[e]
     XX = X[:, e]
@@ -61,7 +61,7 @@ function minvol(X::AbstractMatrix, tol::Real=1e-7, KKY::Integer=0, maxit::Intege
         R = Cholesky(R, :U, 0)
         factor = 1
         RX = R.U' \ XX
-        var = sum(RX .* RX, dims=1) |> vec
+        var = vec(sum(RX .* RX; dims=1))
     else
         var = var[e]
         u = u[e] / sum(u[e])
@@ -105,7 +105,7 @@ function minvol(X::AbstractMatrix, tol::Real=1e-7, KKY::Integer=0, maxit::Intege
 
         # COMPUTE STEPSIZE LAM (MAY BE NEGATIVE), EPSILON, AND
         # IMPROVEMENT IN LOGDET
-        λ = (mvar  - n) / ((n - 1) * mvar)
+        λ = (mvar - n) / ((n - 1) * mvar)
         ep = mvar / n - 1
         uj = u[j]
         λ = max(λ, -uj)
@@ -143,7 +143,7 @@ function minvol(X::AbstractMatrix, tol::Real=1e-7, KKY::Integer=0, maxit::Intege
             R = Cholesky(R, :U, 0)
             factor = 1
             RX = R.U' \ XX
-            var = sum(RX .* RX, dims=1) |> vec
+            var = vec(sum(RX .* RX; dims=1))
         else
             xx = sqrt(abs(λ) * factor) * xj
             if λ > 0
@@ -152,13 +152,15 @@ function minvol(X::AbstractMatrix, tol::Real=1e-7, KKY::Integer=0, maxit::Intege
                 lowrankdowndate!(R, xx)
             end
             factor = factor * (1 + λ)
+            mult = λ / (1 + λ * mvar)
+            var = (1 + λ) * (var - mult * transpose((transpose(Mxj) * XX)) .^ 2)
         end
 
         maxvar, maxj = findmax(var)
 
         if iter > 1 && (iter - 1 == floor((iter - 1 / n100) * n100))
             ept = maxvar - n
-            thresh = n * (1 + ept / 2 - (ept / 2) * (4 + ept - 4 / n)^.5 / 2)
+            thresh = n * (1 + ept / 2 - (ept / 2) * (4 + ept - 4 / n)^0.5 / 2)
             e = findall(var > thresh | u' .> 1e-8)
             if length(e) < mm
                 act = act[e]
@@ -173,7 +175,7 @@ function minvol(X::AbstractMatrix, tol::Real=1e-7, KKY::Integer=0, maxit::Intege
                     R = Cholesky(R, :U, 0)
                     factor = 1
                     RX = R.U' \ XX
-                    var = sum(RX .* RX, dims=1) |> vec
+                    var = vec(sum(RX .* RX; dims=1))
                     maxvar, maxj = findmax(var)
                 else
                     var = var[e]
@@ -215,14 +217,13 @@ function minvol(X::AbstractMatrix, tol::Real=1e-7, KKY::Integer=0, maxit::Intege
     return u, R
 end
 
-    """
+"""
     initwt(X)
 
 Obtain the initial weights `u` using the Kumar-Yildirim algorithm, taking into account that
 `X` represents [X, -X].
 """
 function initwt(X::AbstractMatrix)
-
     n, m = size(X)
     u = zeros(m, 1)
     Q = 1.0 * I(n)
@@ -230,7 +231,7 @@ function initwt(X::AbstractMatrix)
 
     for j in 1:n
         # compute the maximizer of | d'*x | over the columns of X.
-        dX = abs.(d' * X) |> vec
+        dX = vec(abs.(d' * X))
         maxdX, ind = findmax(dX)
         u[ind] = 1
 
@@ -241,7 +242,7 @@ function initwt(X::AbstractMatrix)
         z = Q' * y
 
         if j > 1
-            z[1:j - 1] = zeros(j - 1, 1)
+            z[1:(j - 1)] = zeros(j - 1, 1)
         end
 
         ζ = norm(z)
@@ -262,8 +263,8 @@ end
 function Base.rand(S::AbstractMatrix, z::Vector{<:Real}, m::Integer)
     n = size(S, 1)
     X = randn(n, m)
-    X = X ./ kron(ones(n, 1), sqrt.(sum(X.^2, dims=1)))
-    R = ones(n, 1) * rand(1, m).^(1 / n)
+    X = X ./ kron(ones(n, 1), sqrt.(sum(X .^ 2; dims=1)))
+    R = ones(n, 1) * rand(1, m) .^ (1 / n)
     sphere = R .* X
     ellipsoid = cholesky(S).U * sphere
     return ellipsoid * sqrt(n) + z .* ones(1, m)
