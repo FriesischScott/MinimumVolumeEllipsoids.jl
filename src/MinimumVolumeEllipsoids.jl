@@ -56,7 +56,7 @@ function minvol(X::AbstractMatrix, tol::Real=1e-7, KKY::Integer=0, maxit::Intege
     if mm == n
         u = (1 / n) * ones(n, 1)
         upos = findall(u .> 1e-8)
-        A = Diagonal(sqrt(u)) * XX'
+        A = Diagonal(sqrt.(u)) * XX'
         _, R = qr(A)
         R = Cholesky(R, :U, 0)
         factor = 1
@@ -214,7 +214,7 @@ function minvol(X::AbstractMatrix, tol::Real=1e-7, KKY::Integer=0, maxit::Intege
     var = varr
     iter -= iter
 
-    return u, R
+    return vec(u), R
 end
 
 """
@@ -266,8 +266,8 @@ function Base.rand(S::AbstractMatrix, z::Vector{<:Real}, m::Integer)
     X = X ./ kron(ones(n, 1), sqrt.(sum(X .^ 2; dims=1)))
     R = ones(n, 1) * rand(1, m) .^ (1 / n)
     sphere = R .* X
-    ellipsoid = cholesky(S).U * sphere
-    return ellipsoid * sqrt(n) + z .* ones(1, m)
+    ellipsoid = sqrt(n) * S * sphere
+    return ellipsoid + z .* ones(1, m)
 end
 
 end # module
