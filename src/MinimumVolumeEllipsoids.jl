@@ -278,13 +278,6 @@ function Base.rand(ϵ::Ellipsoid, m::Integer)
     return ellipsoid
 end
 
-function volume(ϵ::Ellipsoid)
-    n = size(ϵ.H, 1)
-    return (n^(n / 2) * _unit_ball_volume(n)) / sqrt(det(ϵ.H))
-end
-
-function _unit_ball_volume(n::Integer)
-    return π^(n / 2) / factorial(n / 2)
-end
+include("volume.jl")
 
 end # module
