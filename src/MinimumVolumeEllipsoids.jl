@@ -12,7 +12,7 @@ export rand
 export volume
 
 struct Ellipsoid
-    H::Cholesky
+    H::PDMat
     x::AbstractVector
 end
 
@@ -255,7 +255,7 @@ function Base.rand(ϵ::Ellipsoid, m::Integer)
     X = X ./ kron(ones(n, 1), sqrt.(sum(X .^ 2; dims=1)))
     R = ones(n, 1) * rand(1, m) .^ (1 / n)
     sphere = R .* X
-    ellipsoid = sqrt(n) * ϵ.H.L * sphere + ϵ.x .* ones(1, m)
+    ellipsoid = sqrt(n) * cholesky(inv(ϵ.H)).L * sphere + ϵ.x .* ones(1, m)
     return ellipsoid
 end
 
