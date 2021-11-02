@@ -24,10 +24,6 @@ function minvol(X::AbstractMatrix, tol::Real=1e-7, KKY::Integer=0, maxit::Intege
 
     mxv = zeros(1, maxit)
     mnv = zeros(1, maxit)
-    flagstep = zeros(1, maxit)
-    λhist = zeros(1, maxit)
-    mvarerrhist = zeros(1, maxit)
-    improv = zeros(1, maxit)
     iter = 1
 
     if KKY >= 1
@@ -105,7 +101,6 @@ function minvol(X::AbstractMatrix, tol::Real=1e-7, KKY::Integer=0, maxit::Intege
         Mxj = factor * (R.U \ Rxj)
         mvarn = factor * (Rxj' * Rxj)
         mvarerror = abs(mvarn - mvar) / max(1, mvar)
-        mvarerrhist[iter] = mvarerror
         if (mvarerror > 1e-8)
             flag_recompute = true
         end
@@ -117,16 +112,6 @@ function minvol(X::AbstractMatrix, tol::Real=1e-7, KKY::Integer=0, maxit::Intege
         ep = mvar / n - 1
         uj = u[j]
         λ = max(λ, -uj)
-        λhist[iter] = λ
-        if λ < -u[j] + 1e-8
-            flagstep[iter] = 1
-        elseif λ < 0
-            flagstep[iter] = 2
-        elseif u[j] < 1e-8
-            flagstep[iter] = 3
-        else
-            flagstep[iter] = 4
-        end
 
         # Update u and make sure it stays nonnegative
         imp = log(1 + λ * mvar) - n * log(1 + λ)
@@ -201,7 +186,6 @@ function minvol(X::AbstractMatrix, tol::Real=1e-7, KKY::Integer=0, maxit::Intege
         minj = upos[ind]
         mnvup = minvar
         iter += 1
-        improv[iter] = imp
         mxv[iter] = maxvar
         mnv[iter] = minvar
         if KKY == 1
@@ -211,9 +195,6 @@ function minvol(X::AbstractMatrix, tol::Real=1e-7, KKY::Integer=0, maxit::Intege
 
     mxv = mxv[1:iter]
     mnv = mnv[1:iter]
-    flagstep = flagstep[1:iter]
-    improv = improv[1:iter]
-    λhist = λhist[1:iter]
     uu = zeros(m, 1)
     uu[act] = u
     u = uu
