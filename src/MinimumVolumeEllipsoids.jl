@@ -9,6 +9,7 @@ export Ellipsoid
 
 export minvol
 export rand
+export volume
 
 struct Ellipsoid
     H::Cholesky
@@ -275,6 +276,15 @@ function Base.rand(ϵ::Ellipsoid, m::Integer)
     sphere = R .* X
     ellipsoid = sqrt(n) * ϵ.H.L * sphere + ϵ.x .* ones(1, m)
     return ellipsoid
+end
+
+function volume(ϵ::Ellipsoid)
+    n = size(ϵ.H, 1)
+    return (n^(n / 2) * _unit_ball_volume(n)) / sqrt(det(ϵ.H))
+end
+
+function _unit_ball_volume(n::Integer)
+    return π^(n / 2) / factorial(n / 2)
 end
 
 end # module
