@@ -5,8 +5,15 @@ using LinearAlgebra
 using PDMats
 using SparseArrays
 
+export Ellipsoid
+
 export minvol
 export rand
+
+struct Ellipsoid
+    H::Cholesky
+    x::AbstractVector
+end
 
 function minvol(X::AbstractMatrix, tol::Real=1e-7, KKY::Integer=0, maxit::Integer=100000)
     n, m = size(X)
@@ -260,14 +267,14 @@ function initwt(X::AbstractMatrix)
     return vec(u)
 end
 
-function Base.rand(S::AbstractMatrix, z::Vector{<:Real}, m::Integer)
-    n = size(S, 1)
+function Base.rand(ϵ::Ellipsoid, m::Integer)
+    n = size(ϵ.H, 1)
     X = randn(n, m)
     X = X ./ kron(ones(n, 1), sqrt.(sum(X .^ 2; dims=1)))
     R = ones(n, 1) * rand(1, m) .^ (1 / n)
     sphere = R .* X
-    ellipsoid = sqrt(n) * S * sphere
-    return ellipsoid + z .* ones(1, m)
+    ellipsoid = sqrt(n) * ϵ.H.L * sphere + ϵ.x .* ones(1, m)
+    return ellipsoid
 end
 
 end # module
