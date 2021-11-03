@@ -3,7 +3,6 @@ module MinimumVolumeEllipsoids
 using Distributions
 using LinearAlgebra
 using PDMats
-using SparseArrays
 
 export Ellipsoid
 
