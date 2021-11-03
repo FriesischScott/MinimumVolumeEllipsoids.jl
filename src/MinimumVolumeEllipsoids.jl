@@ -7,7 +7,7 @@ using SparseArrays
 
 export Ellipsoid
 
-export minvol
+export minimum_volume_ellipsoid
 export rand
 export volume
 
@@ -16,7 +16,34 @@ struct Ellipsoid
     x::AbstractVector
 end
 
-function minvol(X::AbstractMatrix, tol::Real=1e-7, KKY::Integer=0, maxit::Integer=100000)
+function minimum_volume_ellipsoid(
+    X::AbstractMatrix,
+    tol::Real=1e-7,
+    KKY::Integer=0,
+    maxit::Integer=100000;
+    centered::Bool=false,
+)
+    n, m = size(X)
+
+    if centered
+        u, R = _minvol(X, tol, KKY, maxit)
+
+        H = PDMat(inv(R))
+        return Ellipsoid(H, zeros(n))
+    else
+        Y = [X; ones(1, m)]
+
+        u, R = _minvol(Y, tol, KKY, maxit)
+
+        H = X * Diagonal(u) * X' - X * u * u' * X'
+        H = (H + H') / 2 # symmetry!
+        H = PDMat(inv(H))
+
+        return Ellipsoid(H, X * u)
+    end
+end
+
+function _minvol(X::AbstractMatrix, tol::Real=1e-7, KKY::Integer=0, maxit::Integer=100000)
     n, m = size(X)
 
     n100 = max(n, 100)

@@ -1,13 +1,12 @@
 using MinimumVolumeEllipsoids
-using LinearAlgebra
-using PDMats
 using Plots
 
-X = transpose([-1 1; -1 -1; 1 -1; 2 2])
+X = [
+    -1 -1 1 2
+    1 -1 -1 2
+]
 
-u, R = minvol(X, 1e-10)
-
-ϵ = Ellipsoid(PDMat(inv(R)), zeros(2))
+ϵ = minimum_volume_ellipsoid(X, centered=true)
 
 U = rand(ϵ, 5000)
 

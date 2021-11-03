@@ -1,4 +1,4 @@
-@testset "Unit Ball Volume" begin
+@testset "_unit_ball_volume" begin
     @test MinimumVolumeEllipsoids._unit_ball_volume(0) == 1.0
     @test MinimumVolumeEllipsoids._unit_ball_volume(1) ≈ 2.0 atol = 1e-10
     @test MinimumVolumeEllipsoids._unit_ball_volume(2) ≈ π atol = 1e-10
