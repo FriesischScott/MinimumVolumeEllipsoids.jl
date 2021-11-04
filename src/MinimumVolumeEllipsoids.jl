@@ -53,20 +53,16 @@ function _minvol(X::AbstractMatrix, tol::Real=1e-7, KKY::Integer=0, maxit::Integ
     iter = 1
 
     if KKY >= 1
-        u = vec((1 / m) * ones(m, 1))
+        u = (1 / m) * ones(m)
     else
         u = initwt(X)
     end
 
     # Initialize Cholesky Factor
     upos = findall(u .> 0)
-    A = Diagonal(sqrt.(u[upos])) * transpose(X[:, upos])
-    _, R = qr(A)
-    R = Cholesky(R, :U, 0)
+    R, var = _compute_R_and_var(u, X, upos)
     factor = 1
 
-    RX = R.U' \ X
-    var = vec(sum(RX .* RX; dims=1))
     maxvar, maxj = findmax(var)
 
     act = [1:m;]
@@ -84,14 +80,10 @@ function _minvol(X::AbstractMatrix, tol::Real=1e-7, KKY::Integer=0, maxit::Integ
 
     # If only n columns remain, recompute u and R
     if mm == n
-        u = (1 / n) * ones(n, 1)
+        u = (1 / n) * ones(n)
         upos = findall(u .> 1e-8)
-        A = Diagonal(sqrt.(u)) * XX'
-        _, R = qr(A)
-        R = Cholesky(R, :U, 0)
+        R, var = _compute_R_and_var(u, XX, upos)
         factor = 1
-        RX = R.U' \ XX
-        var = vec(sum(RX .* RX; dims=1))
     else
         var = var[e]
         u = u[e] / sum(u[e])
@@ -157,12 +149,8 @@ function _minvol(X::AbstractMatrix, tol::Real=1e-7, KKY::Integer=0, maxit::Integ
 
         if flag_recompute
             upos = findall(u .> 0)
-            A = Diagonal(sqrt.(u[upos])) * XX[:, upos]'
-            _, R = qr(A)
-            R = Cholesky(R, :U, 0)
+            R, var = _compute_R_and_var(u, XX, upos)
             factor = 1
-            RX = R.U' \ XX
-            var = vec(sum(RX .* RX; dims=1))
         else
             xx = sqrt(abs(λ) * factor) * xj
             if λ > 0
@@ -189,12 +177,8 @@ function _minvol(X::AbstractMatrix, tol::Real=1e-7, KKY::Integer=0, maxit::Integ
                     u = (1 / n) * ones(n, 1)
                     uold = u
                     upos = findall(u .> 1e-8)
-                    A = Diagonal(sqrt.(u)) * XX'
-                    _, R = qr(A)
-                    R = Cholesky(R, :U, 0)
+                    R, var = _compute_R_and_var(u, XX, upos)
                     factor = 1
-                    RX = R.U' \ XX
-                    var = vec(sum(RX .* RX; dims=1))
                     maxvar, maxj = findmax(var)
                 else
                     var = var[e]
@@ -230,6 +214,15 @@ function _minvol(X::AbstractMatrix, tol::Real=1e-7, KKY::Integer=0, maxit::Integ
     iter -= iter
 
     return vec(u), R
+end
+
+function _compute_R_and_var(u::AbstractVector, X::AbstractMatrix, upos::AbstractVector)
+    A = Diagonal(sqrt.(u[upos])) * transpose(X[:, upos])
+    _, R = qr(A)
+    R = Cholesky(R, :U, 0)
+    RX = R.U' \ X
+    var = vec(sum(RX .* RX; dims=1))
+    return R, var
 end
 
 """
