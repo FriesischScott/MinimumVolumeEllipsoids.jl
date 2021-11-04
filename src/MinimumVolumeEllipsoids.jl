@@ -59,146 +59,136 @@ function _minvol(X::AbstractMatrix, tol::Real=1e-7, KKY::Integer=0, maxit::Integ
     # Initialize Cholesky Factor
     upos = findall(u .> 0)
     R, var = _compute_R_and_var(u, X, upos)
-    factor = 1
+    ϕ = 1
 
-    maxvar, maxj = findmax(var)
+    ω₊ = maximum(var)
 
     act = [1:m;]
     XX = copy(X)
-    mm = m
 
     # Use the Harman-Pronzato test to see if columns of X can be eliminated.
-    ept = maxvar - n
-    thresh = n * (1 + ept / 2 - (ept * (4 + ept - 4 / n))^0.5 / 2)
-    e = findall((var .> thresh) .| (u .> 1e-8))
-    act = act[e]
-    XX = X[:, e]
-    mm = length(e)
+    δn = ω₊ - n
+    thresh = n * (1 + δn / 2 - √(δn - δn / n + ((δn / n)^2 * n^2) / 4))
+    essential = findall((var .> thresh) .| (u .> 1e-8))
+    act = act[essential]
+    XX = X[:, essential]
 
     # If only n columns remain, recompute u and R
-    if mm == n
+    if length(essential) == n
         u = (1 / n) * ones(n)
         upos = findall(u .> 1e-8)
         R, var = _compute_R_and_var(u, XX, upos)
-        factor = 1
     else
-        var = var[e]
-        u = u[e] / sum(u[e])
+        var = var[essential]
+        u = u[essential] / sum(u[essential])
         upos = findall(u .> 1e-8)
     end
 
-    # Find "furthest" and "cloest" points
-    maxvar, maxj = findmax(var)
-    minvar, ind = findmin(var[upos])
-    minj = upos[ind]
-    mnvup = minvar
+    # Find "furthest" and "closest" points
+    ω₊, j = findmax(var)
+    ω₋, i = findmin(var[upos])
+    i = upos[i]
 
     if KKY == 1
-        mnvup = n
+        ω₋ = n
     end
 
-    while ((maxvar > (1 + tol) * n) || (mnvup < (1 - tol) * n)) && iter < maxit
+    ϵ₊ = (ω₊ - n) / n
+    ϵ₋ = (ω₋ - n) / n
+
+    while max(ϵ₊, ϵ₋) > tol && iter < maxit
         iter += 1
 
-        if maxvar + mnvup > 2 * n
-            j = maxj
-            mvar = maxvar
-        else
-            j = minj
-            mvar = mnvup
-        end
+        (j, ω) = ϵ₊ > ϵ₋ ? (j, ω₊) : (i, ω₋)
 
-        xj = XX[:, j]
-        Rxj = R.U' \ xj
-        Mxj = factor * (R.U \ Rxj)
-        mvarn = factor * (Rxj' * Rxj)
-        mvarerror = abs(mvarn - mvar) / max(1, mvar)
-        mvar = mvarn
-
-        flag_recompute = mvarerror > 1e-8
-
-        # COMPUTE STEPSIZE LAM (MAY BE NEGATIVE), EPSILON, AND
-        # IMPROVEMENT IN LOGDET
-        λ = (mvar - n) / ((n - 1) * mvar)
-        uj = u[j]
-        λ = max(λ, -uj)
+        # compute new λ
+        λ = (ω - n) / ((n - 1) * ω)
+        λ = max(λ, -u[j])
 
         # Update u and make sure it stays nonnegative
         uold = u
-        u[j] = max(uj + λ, 0)
+        u[j] = max(u[j] + λ, 0)
         u = (1 / (1 + λ)) * u
         upos = findall(u .> 1e-8)
 
-        if iter > 1 && iter - 1 == floor((iter - 1 / n50000) * n50000)
+        z = inv(R.L) * XX[:, j]
+        ωⱼ = ϕ * transpose(z) * z
+        x = ϕ * transpose(inv(R.L)) * z
+
+        recompute_R = abs(ωⱼ - ω) / max(1, ω) > 1e-8
+
+        ω = ωⱼ
+
+        # Every 50.000 iterations: Check if R should be recomputed
+        if mod(iter, n50000) == 0
             upos = findall(uold .> 0)
             M = XX[:, upos] * Diagonal(uold[upos]) * XX[:, upos]'
-            normdiff = norm(factor * M - R.U' * R.U) / (factor * norm(M))
-            if normdiff > 1e-8
-                flag_recompute = true
+            if norm(ϕ * M - R) / (ϕ * norm(M)) > 1e-8
+                recompute_R = true
             end
         end
 
-        if flag_recompute
+        if recompute_R
             upos = findall(u .> 0)
             R, var = _compute_R_and_var(u, XX, upos)
-            factor = 1
+            ϕ = 1
         else
-            xx = sqrt(abs(λ) * factor) * xj
+            xx = sqrt(abs(λ) * ϕ) * XX[:, j]
             if λ > 0
                 lowrankupdate!(R, xx)
             else
                 lowrankdowndate!(R, xx)
             end
-            factor = factor * (1 + λ)
-            mult = λ / (1 + λ * mvar)
-            var = (1 + λ) * (var - mult * transpose((transpose(Mxj) * XX)) .^ 2)
+            ϕ *= (1 + λ)
+            mult = λ / (1 + λ * ω)
+            var = (1 + λ) * (var - mult * transpose((transpose(x) * XX)) .^ 2)
         end
 
-        maxvar, maxj = findmax(var)
+        ω₊, j = findmax(var)
 
-        if iter > 1 && (iter - 1 == floor((iter - 1 / n100) * n100))
-            ept = maxvar - n
-            thresh = n * (1 + ept / 2 - (ept / 2) * (4 + ept - 4 / n)^0.5 / 2)
-            e = findall(var > thresh | u' .> 1e-8)
-            if length(e) < mm
-                act = act[e]
-                XX = XX[:, e]
-                mm = length(e)
+        # Every 100 iterations: Check if more points can be eliminated
+        if mod(iter, n100) == 0
+            mm = length(essential)
+            δn = ω₊ - n
+            thresh = n * (1 + δn / 2 - √(δn - δn / n + ((δn / n)^2 * n^2) / 4))
+            essential = findall((var .> thresh) .| (u .> 1e-8))
+            if length(essential) < mm
+                act = act[essential]
+                XX = XX[:, essential]
+                mm = length(essential)
                 if mm == n
                     u = (1 / n) * ones(n, 1)
                     uold = u
                     upos = findall(u .> 1e-8)
                     R, var = _compute_R_and_var(u, XX, upos)
-                    factor = 1
-                    maxvar, maxj = findmax(var)
+                    ϕ = 1
                 else
-                    var = var[e]
-                    u = u[e] / sum(u[e])
-                    uold = uold[e] / sum(uold[e])
+                    var = var[essential]
+                    u = u[essential] / sum(u[essential])
+                    uold = uold[essential] / sum(uold[essential])
                     upos = findall(u .> 1e-8)
-                    maxvar, maxj = findmax(var)
                 end
+                ω₊, j = findmax(var)
             end
         end
 
         upos = findall(u .> 0)
-        minvar, ind = findmin(var[upos])
-        minj = upos[ind]
-        mnvup = minvar
+        ω₋, i = findmin(var[upos])
+        i = upos[i]
 
         if KKY == 1
-            mnvup = n
+            ω₋ = n
         end
+
+        ϵ₊ = (ω₊ - n) / n
+        ϵ₋ = (ω₋ - n) / n
     end
 
     uu = zeros(m)
     uu[act] = u
     u = uu
-    varr = -ones(m)
-    varr[act] = var
-    var = varr
 
-    return vec(u), R
+    return u, R
 end
 
 function _compute_R_and_var(u::AbstractVector, X::AbstractMatrix, upos::AbstractVector)
@@ -218,14 +208,14 @@ Obtain the initial weights `u` using the Kumar-Yildirim algorithm, taking into a
 """
 function initwt(X::AbstractMatrix)
     n, m = size(X)
-    u = zeros(m, 1)
+    u = zeros(m)
     Q = 1.0 * I(n)
     d = Q[:, 1]
 
     for j in 1:n
         # compute the maximizer of | d'*x | over the columns of X.
         dX = vec(abs.(d' * X))
-        maxdX, ind = findmax(dX)
+        _, ind = findmax(dX)
         u[ind] = 1
 
         j == n && break
@@ -250,7 +240,7 @@ function initwt(X::AbstractMatrix)
     end
 
     u /= n
-    return vec(u)
+    return u
 end
 
 function Base.rand(ϵ::Ellipsoid, m::Integer)
