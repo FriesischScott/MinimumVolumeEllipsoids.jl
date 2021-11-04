@@ -48,9 +48,7 @@ function _minvol(X::AbstractMatrix, tol::Real=1e-7, KKY::Integer=0, maxit::Integ
     n100 = max(n, 100)
     n50000 = max(n, 50000)
 
-    mxv = zeros(1, maxit)
-    mnv = zeros(1, maxit)
-    iter = 1
+    iter = 0
 
     if KKY >= 1
         u = (1 / m) * ones(m)
@@ -68,7 +66,6 @@ function _minvol(X::AbstractMatrix, tol::Real=1e-7, KKY::Integer=0, maxit::Integ
     act = [1:m;]
     XX = copy(X)
     mm = m
-    oldmm = m
 
     # Use the Harman-Pronzato test to see if columns of X can be eliminated.
     ept = maxvar - n
@@ -89,7 +86,6 @@ function _minvol(X::AbstractMatrix, tol::Real=1e-7, KKY::Integer=0, maxit::Integ
         u = u[e] / sum(u[e])
         upos = findall(u .> 1e-8)
     end
-    oldmm = mm
 
     # Find "furthest" and "cloest" points
     maxvar, maxj = findmax(var)
@@ -97,14 +93,13 @@ function _minvol(X::AbstractMatrix, tol::Real=1e-7, KKY::Integer=0, maxit::Integ
     minj = upos[ind]
     mnvup = minvar
 
-    mxv[iter] = maxvar
-    mnv[iter] = minvar
-
     if KKY == 1
         mnvup = n
     end
 
     while ((maxvar > (1 + tol) * n) || (mnvup < (1 - tol) * n)) && iter < maxit
+        iter += 1
+
         if maxvar + mnvup > 2 * n
             j = maxj
             mvar = maxvar
@@ -113,16 +108,14 @@ function _minvol(X::AbstractMatrix, tol::Real=1e-7, KKY::Integer=0, maxit::Integ
             mvar = mnvup
         end
 
-        flag_recompute = false
         xj = XX[:, j]
         Rxj = R.U' \ xj
         Mxj = factor * (R.U \ Rxj)
         mvarn = factor * (Rxj' * Rxj)
         mvarerror = abs(mvarn - mvar) / max(1, mvar)
-        if (mvarerror > 1e-8)
-            flag_recompute = true
-        end
         mvar = mvarn
+
+        flag_recompute = mvarerror > 1e-8
 
         # COMPUTE STEPSIZE LAM (MAY BE NEGATIVE), EPSILON, AND
         # IMPROVEMENT IN LOGDET
@@ -185,7 +178,6 @@ function _minvol(X::AbstractMatrix, tol::Real=1e-7, KKY::Integer=0, maxit::Integ
                     upos = findall(u .> 1e-8)
                     maxvar, maxj = findmax(var)
                 end
-                oldmm = mm
             end
         end
 
@@ -193,23 +185,18 @@ function _minvol(X::AbstractMatrix, tol::Real=1e-7, KKY::Integer=0, maxit::Integ
         minvar, ind = findmin(var[upos])
         minj = upos[ind]
         mnvup = minvar
-        iter += 1
-        mxv[iter] = maxvar
-        mnv[iter] = minvar
+
         if KKY == 1
             mnvup = n
         end
     end
 
-    mxv = mxv[1:iter]
-    mnv = mnv[1:iter]
-    uu = zeros(m, 1)
+    uu = zeros(m)
     uu[act] = u
     u = uu
-    varr = -ones(m, 1)
+    varr = -ones(m)
     varr[act] = var
     var = varr
-    iter -= iter
 
     return vec(u), R
 end
