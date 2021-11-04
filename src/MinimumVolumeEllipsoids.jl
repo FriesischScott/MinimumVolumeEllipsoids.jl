@@ -127,12 +127,10 @@ function _minvol(X::AbstractMatrix, tol::Real=1e-7, KKY::Integer=0, maxit::Integ
         # COMPUTE STEPSIZE LAM (MAY BE NEGATIVE), EPSILON, AND
         # IMPROVEMENT IN LOGDET
         λ = (mvar - n) / ((n - 1) * mvar)
-        ep = mvar / n - 1
         uj = u[j]
         λ = max(λ, -uj)
 
         # Update u and make sure it stays nonnegative
-        imp = log(1 + λ * mvar) - n * log(1 + λ)
         uold = u
         u[j] = max(uj + λ, 0)
         u = (1 / (1 + λ)) * u
