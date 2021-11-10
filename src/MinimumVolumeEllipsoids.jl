@@ -89,10 +89,6 @@ function _minvol(X::AbstractMatrix, tol::Real=1e-7, KKY::Integer=0, maxit::Integ
     ω₋, i = findmin(var[upos])
     i = upos[i]
 
-    if KKY == 1
-        ω₋ = n
-    end
-
     ϵ₊ = (ω₊ - n) / n
     ϵ₋ = (ω₋ - n) / n
 
@@ -173,10 +169,6 @@ function _minvol(X::AbstractMatrix, tol::Real=1e-7, KKY::Integer=0, maxit::Integ
         upos = findall(u .> 0)
         ω₋, i = findmin(var[upos])
         i = upos[i]
-
-        if KKY == 1
-            ω₋ = n
-        end
 
         ϵ₊ = (ω₊ - n) / n
         ϵ₋ = (ω₋ - n) / n
