@@ -63,18 +63,18 @@ function _minvol(X::AbstractMatrix, tol::Real=1e-7, KKY::Integer=0, maxit::Integ
 
     ω₊ = maximum(var)
 
-    act = [1:m;]
+    act = fill(true, m)
     XX = copy(X)
 
     # Use the Harman-Pronzato test to see if columns of X can be eliminated.
     δn = ω₊ - n
     thresh = n * (1 + δn / 2 - √(δn - δn / n + ((δn / n)^2 * n^2) / 4))
-    essential = findall((var .> thresh) .| (u .> 1e-8))
-    act = act[essential]
+    essential = (var .> thresh) .| (u .< 1e-8)
+    act = act .& essential
     XX = X[:, essential]
 
     # If only n columns remain, recompute u and R
-    if length(essential) == n
+    if sum(act) == n
         u = (1 / n) * ones(n)
         upos = findall(u .> 1e-8)
         R, var = _compute_R_and_var(u, XX, upos)
@@ -148,15 +148,13 @@ function _minvol(X::AbstractMatrix, tol::Real=1e-7, KKY::Integer=0, maxit::Integ
 
         # Every 100 iterations: Check if more points can be eliminated
         if mod(iter, n100) == 0
-            mm = length(essential)
             δn = ω₊ - n
             thresh = n * (1 + δn / 2 - √(δn - δn / n + ((δn / n)^2 * n^2) / 4))
-            essential = findall((var .> thresh) .| (u .> 1e-8))
-            if length(essential) < mm
-                act = act[essential]
+            essential = (var .> thresh) .| (u .> 1e-8)
+            if sum(essential) < sum(act)
+                act = act .& essential
                 XX = XX[:, essential]
-                mm = length(essential)
-                if mm == n
+                if sum(act) == n
                     u = (1 / n) * ones(n, 1)
                     uold = u
                     upos = findall(u .> 1e-8)
