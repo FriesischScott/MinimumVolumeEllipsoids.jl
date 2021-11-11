@@ -69,7 +69,7 @@ function _minvol(X::AbstractMatrix, tol::Real=1e-7, KKY::Integer=0, maxit::Integ
     # Use the Harman-Pronzato test to see if columns of X can be eliminated.
     δn = ω₊ - n
     thresh = n * (1 + δn / 2 - √(δn - δn / n + ((δn / n)^2 * n^2) / 4))
-    essential = (var .> thresh) .| (u .< 1e-8)
+    essential = (var .> thresh) .| (u .> 1e-8)
     act = act .& essential
     XX = X[:, essential]
 
