@@ -1,7 +1,7 @@
 name = "MinimumVolumeEllipsoids"
 uuid = "369a3862-bec2-4fd2-abcd-2df79a05ee65"
 authors = ["Jasper Behrensdorf <behrensdorf@irz.uni-hannover.de>"]
-version = "0.1.0"
+version = "0.1.1"
 
 [deps]
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
