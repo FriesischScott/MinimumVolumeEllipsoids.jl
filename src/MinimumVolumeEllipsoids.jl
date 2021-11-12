@@ -3,6 +3,7 @@ module MinimumVolumeEllipsoids
 using Distributions
 using LinearAlgebra
 using PDMats
+using SparseArrays
 
 export Ellipsoid
 
@@ -25,21 +26,23 @@ function minimum_volume_ellipsoid(
     n, m = size(X)
 
     if centered
-        u, R = _minvol(X, tol, KKY, maxit)
+        _, R, ϕ = _minvol(X, tol, KKY, maxit)
 
-        H = PDMat(inv(R))
-        return Ellipsoid(H, zeros(n))
+        H = inv(R.L * R.L' / ϕ)
+        x = zeros(n)
     else
         Y = [X; ones(1, m)]
 
-        u, R = _minvol(Y, tol, KKY, maxit)
+        u, R, ϕ = _minvol(Y, tol, KKY, maxit)
 
-        H = X * Diagonal(u) * X' - X * u * u' * X'
-        H = (H + H') / 2 # symmetry!
-        H = PDMat(inv(H))
-
-        return Ellipsoid(H, X * u)
+        H = inv(R.L * R.L' / ϕ)[1:n, 1:n]
+        x = X * u
     end
+
+    H = (H + H') / 2
+    H = PDMat(H)
+
+    return Ellipsoid(H, x)
 end
 
 function _minvol(X::AbstractMatrix, tol::Real=1e-7, KKY::Integer=0, maxit::Integer=100000)
@@ -57,7 +60,7 @@ function _minvol(X::AbstractMatrix, tol::Real=1e-7, KKY::Integer=0, maxit::Integ
     end
 
     # Initialize Cholesky Factor
-    upos = findall(u .> 0)
+    upos = u .> 0
     R, var = _compute_R_and_var(u, X, upos)
     factor = 1
 
@@ -156,10 +159,10 @@ function _minvol(X::AbstractMatrix, tol::Real=1e-7, KKY::Integer=0, maxit::Integ
 
         maxvar, maxj = findmax(var)
 
-        if iter > 1 && (iter - 1 == floor((iter - 1 / n100) * n100))
+        if mod(iter, n100) == 0
             ept = maxvar - n
-            thresh = n * (1 + ept / 2 - (ept / 2) * (4 + ept - 4 / n)^0.5 / 2)
-            e = findall(var > thresh | u' .> 1e-8)
+            thresh = n * (1 + ept / 2 - (ept * (4 + ept - 4 / n))^0.5 / 2)
+            e = findall((var .> thresh) .| (u .> 1e-8))
             if length(e) < mm
                 act = act[e]
                 XX = XX[:, e]
@@ -198,13 +201,13 @@ function _minvol(X::AbstractMatrix, tol::Real=1e-7, KKY::Integer=0, maxit::Integ
     varr[act] = var
     var = varr
 
-    return vec(u), R
+    return vec(u), R, factor
 end
 
 function _compute_R_and_var(u::AbstractVector, X::AbstractMatrix, upos::AbstractVector)
-    A = Diagonal(sqrt.(u[upos])) * transpose(X[:, upos])
-    _, R = qr(A)
-    R = Cholesky(R, :U, 0)
+    A = spdiagm(sqrt.(u[upos])) * X[:, upos]'
+    F = qr(A)
+    R = Cholesky(F.R, :U, 0)
     RX = R.U' \ X
     var = vec(sum(RX .* RX; dims=1))
     return R, var
