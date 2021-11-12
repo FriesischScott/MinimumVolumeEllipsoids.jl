@@ -3,6 +3,7 @@ module MinimumVolumeEllipsoids
 using Distributions
 using LinearAlgebra
 using PDMats
+using SparseArrays
 
 export Ellipsoid
 
@@ -25,21 +26,23 @@ function minimum_volume_ellipsoid(
     n, m = size(X)
 
     if centered
-        u, R = _minvol(X, tol, KKY, maxit)
+        _, R, ϕ = _minvol(X, tol, KKY, maxit)
 
-        H = PDMat(inv(R))
-        return Ellipsoid(H, zeros(n))
+        H = inv(R.L * R.L' / ϕ)
+        x = zeros(n)
     else
         Y = [X; ones(1, m)]
 
-        u, R = _minvol(Y, tol, KKY, maxit)
+        u, R, ϕ = _minvol(Y, tol, KKY, maxit)
 
-        H = X * Diagonal(u) * X' - X * u * u' * X'
-        H = (H + H') / 2 # symmetry!
-        H = PDMat(inv(H))
-
-        return Ellipsoid(H, X * u)
+        H = inv(R.L * R.L' / ϕ)[1:n, 1:n]
+        x = X * u
     end
+
+    H = (H + H') / 2
+    H = PDMat(H)
+
+    return Ellipsoid(H, x)
 end
 
 function _minvol(X::AbstractMatrix, tol::Real=1e-7, KKY::Integer=0, maxit::Integer=100000)
@@ -63,18 +66,16 @@ function _minvol(X::AbstractMatrix, tol::Real=1e-7, KKY::Integer=0, maxit::Integ
 
     ω₊ = maximum(var)
 
-    act = fill(true, m)
-    XX = copy(X)
-
+    essential_indices = [1:m;]
     # Use the Harman-Pronzato test to see if columns of X can be eliminated.
     δn = ω₊ - n
     thresh = n * (1 + δn / 2 - √(δn - δn / n + ((δn / n)^2 * n^2) / 4))
-    essential = (var .> thresh) .| (u .> 1e-8)
-    act = act .& essential
+    essential = findall((var .> thresh) .| (u .> 1e-8))
+    essential_indices = essential
     XX = X[:, essential]
 
     # If only n columns remain, recompute u and R
-    if sum(act) == n
+    if length(essential_indices) == n
         u = (1 / n) * ones(n)
         upos = findall(u .> 1e-8)
         R, var = _compute_R_and_var(u, XX, upos)
@@ -89,13 +90,10 @@ function _minvol(X::AbstractMatrix, tol::Real=1e-7, KKY::Integer=0, maxit::Integ
     ω₋, i = findmin(var[upos])
     i = upos[i]
 
-    ϵ₊ = (ω₊ - n) / n
-    ϵ₋ = (ω₋ - n) / n
-
-    while max(ϵ₊, ϵ₋) > tol && iter < maxit
+    while ((ω₊ > (1 + tol) * n) || (ω₋ < (1 - tol) * n)) && iter < maxit
         iter += 1
 
-        (j, ω) = ϵ₊ > ϵ₋ ? (j, ω₊) : (i, ω₋)
+        (j, ω) = ω₊ + ω₋ > 2 * n ? (j, ω₊) : (i, ω₋)
 
         # compute new λ
         λ = (ω - n) / ((n - 1) * ω)
@@ -107,9 +105,9 @@ function _minvol(X::AbstractMatrix, tol::Real=1e-7, KKY::Integer=0, maxit::Integ
         u = (1 / (1 + λ)) * u
         upos = findall(u .> 1e-8)
 
-        z = inv(R.L) * XX[:, j]
-        ωⱼ = ϕ * transpose(z) * z
-        x = ϕ * transpose(inv(R.L)) * z
+        Rxj = R.U' \ XX[:, j]
+        x = ϕ * (R.U \ Rxj)
+        ωⱼ = ϕ * (Rxj' * Rxj)
 
         recompute_R = abs(ωⱼ - ω) / max(1, ω) > 1e-8
 
@@ -119,7 +117,7 @@ function _minvol(X::AbstractMatrix, tol::Real=1e-7, KKY::Integer=0, maxit::Integ
         if mod(iter, n50000) == 0
             upos = findall(uold .> 0)
             M = XX[:, upos] * Diagonal(uold[upos]) * XX[:, upos]'
-            if norm(ϕ * M - R) / (ϕ * norm(M)) > 1e-8
+            if norm(ϕ * M - R.L * R.L') / (ϕ * norm(M)) > 1e-8
                 recompute_R = true
             end
         end
@@ -146,21 +144,17 @@ function _minvol(X::AbstractMatrix, tol::Real=1e-7, KKY::Integer=0, maxit::Integ
         if mod(iter, n100) == 0
             δn = ω₊ - n
             thresh = n * (1 + δn / 2 - √(δn - δn / n + ((δn / n)^2 * n^2) / 4))
-            essential = (var .> thresh) .| (u .> 1e-8)
-            if sum(essential) < sum(act)
-                act = act .& essential
+            essential = findall((var .> thresh) .| (u .> 1e-8))
+            if length(essential) < length(essential_indices)
+                essential_indices = essential_indices[essential]
                 XX = XX[:, essential]
-                if sum(act) == n
+                if length(essential_indices) == n
                     u = (1 / n) * ones(n, 1)
-                    uold = u
-                    upos = findall(u .> 1e-8)
                     R, var = _compute_R_and_var(u, XX, upos)
                     ϕ = 1
                 else
                     var = var[essential]
                     u = u[essential] / sum(u[essential])
-                    uold = uold[essential] / sum(uold[essential])
-                    upos = findall(u .> 1e-8)
                 end
                 ω₊, j = findmax(var)
             end
@@ -169,22 +163,19 @@ function _minvol(X::AbstractMatrix, tol::Real=1e-7, KKY::Integer=0, maxit::Integ
         upos = findall(u .> 0)
         ω₋, i = findmin(var[upos])
         i = upos[i]
-
-        ϵ₊ = (ω₊ - n) / n
-        ϵ₋ = (ω₋ - n) / n
     end
 
     uu = zeros(m)
-    uu[act] = u
+    uu[essential_indices] = u
     u = uu
 
-    return u, R
+    return u, R, ϕ
 end
 
 function _compute_R_and_var(u::AbstractVector, X::AbstractMatrix, upos::AbstractVector)
-    A = Diagonal(sqrt.(u[upos])) * transpose(X[:, upos])
-    _, R = qr(A)
-    R = Cholesky(R, :U, 0)
+    A = spdiagm(sqrt.(u[upos])) * X[:, upos]'
+    F = qr(A)
+    R = Cholesky(F.R, :U, 0)
     RX = R.U' \ X
     var = vec(sum(RX .* RX; dims=1))
     return R, var
