@@ -12,7 +12,7 @@ export rand
 export volume
 
 struct Ellipsoid
-    H::PDMat
+    H::AbstractPDMat
     x::AbstractVector
 end
 
