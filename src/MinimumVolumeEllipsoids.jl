@@ -66,13 +66,9 @@ function _minvol(X::AbstractMatrix, tol::Real=1e-7, KKY::Integer=0, maxit::Integ
 
     ω₊ = maximum(var)
 
-    essential_indices = [1:m;]
     # Use the Harman-Pronzato test to see if columns of X can be eliminated.
-    δn = ω₊ - n
-    thresh = n * (1 + δn / 2 - √(δn - δn / n + ((δn / n)^2 * n^2) / 4))
-    essential = findall((var .> thresh) .| (u .> 1e-8))
-    essential_indices = essential
-    XX = X[:, essential]
+    essential_indices = _harman_pronzato_elimination(ω₊, n, var, u)
+    XX = X[:, essential_indices]
 
     # If only n columns remain, recompute u and R
     if length(essential_indices) == n
@@ -80,8 +76,8 @@ function _minvol(X::AbstractMatrix, tol::Real=1e-7, KKY::Integer=0, maxit::Integ
         upos = findall(u .> 1e-8)
         R, var = _compute_R_and_var(u, XX, upos)
     else
-        var = var[essential]
-        u = u[essential] / sum(u[essential])
+        var = var[essential_indices]
+        u = u[essential_indices] / sum(u[essential_indices])
         upos = findall(u .> 1e-8)
     end
 
@@ -142,9 +138,7 @@ function _minvol(X::AbstractMatrix, tol::Real=1e-7, KKY::Integer=0, maxit::Integ
 
         # Every 100 iterations: Check if more points can be eliminated
         if mod(iter, n100) == 0
-            δn = ω₊ - n
-            thresh = n * (1 + δn / 2 - √(δn - δn / n + ((δn / n)^2 * n^2) / 4))
-            essential = findall((var .> thresh) .| (u .> 1e-8))
+            essential = _harman_pronzato_elimination(ω₊, n, var, u)
             if length(essential) < length(essential_indices)
                 essential_indices = essential_indices[essential]
                 XX = XX[:, essential]
@@ -170,6 +164,14 @@ function _minvol(X::AbstractMatrix, tol::Real=1e-7, KKY::Integer=0, maxit::Integ
     u = uu
 
     return u, R, ϕ
+end
+
+function _harman_pronzato_elimination(
+    ω₊::Float64, n::Integer, var::AbstractVector, u::AbstractVector
+)
+    δn = ω₊ - n
+    threshold = n * (1 + δn / 2 - √(δn - δn / n + ((δn / n)^2 * n^2) / 4))
+    return findall((var .> threshold) .| (u .> 1e-8))
 end
 
 function _compute_R_and_var(u::AbstractVector, X::AbstractMatrix, upos::AbstractVector)
