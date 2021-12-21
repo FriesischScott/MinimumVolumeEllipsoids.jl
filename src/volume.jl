@@ -4,5 +4,5 @@ function volume(ϵ::Ellipsoid)
 end
 
 function _unit_ball_volume(n::Integer)
-    return π^(n / 2) / factorial(n / 2)
+    return π^(n / 2) / gamma(n / 2 + 1)
 end
