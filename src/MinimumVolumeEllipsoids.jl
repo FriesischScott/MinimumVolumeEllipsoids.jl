@@ -4,6 +4,7 @@ using Distributions
 using LinearAlgebra
 using PDMats
 using SparseArrays
+using SpecialFunctions
 
 export Ellipsoid
 
