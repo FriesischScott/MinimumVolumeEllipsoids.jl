@@ -171,6 +171,10 @@ function _harman_pronzato_elimination(
     ω₊::Float64, n::Integer, var::AbstractVector, u::AbstractVector
 )
     δn = ω₊ - n
+    # TODO: Figure out when and why this happens
+    if δn < 0
+        δn = 0
+    end
     threshold = n * (1 + δn / 2 - √(δn - δn / n + ((δn / n)^2 * n^2) / 4))
     return findall((var .> threshold) .| (u .> 1e-8))
 end
