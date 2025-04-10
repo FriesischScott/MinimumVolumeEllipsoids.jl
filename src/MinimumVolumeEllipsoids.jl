@@ -145,6 +145,7 @@ function _minvol(X::AbstractMatrix, tol::Real=1e-7, KKY::Integer=0, maxit::Integ
                 XX = XX[:, essential]
                 if length(essential_indices) == n
                     u = (1 / n) * ones(n)
+                    upos = findall(u .> 0)
                     R, var = _compute_R_and_var(u, XX, upos)
                     ϕ = 1
                 else
