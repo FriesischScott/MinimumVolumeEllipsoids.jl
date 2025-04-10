@@ -34,7 +34,7 @@ and the shape matrix `ϵ.H`
  -0.375   0.625
 ```
 
-To relax the centered condition an compute the optimal minimum-volume enclosing ellipsoid simply omit the `centered` keyword
+To relax the centered condition and compute the optimal minimum-volume enclosing ellipsoid simply omit the `centered` keyword
 ```julia
 ϵ = minimum_volume_ellipsoid(X)
 ```
