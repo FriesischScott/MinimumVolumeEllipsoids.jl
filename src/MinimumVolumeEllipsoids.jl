@@ -14,7 +14,7 @@ export volume
 
 struct Ellipsoid
     H::AbstractPDMat
-    x::AbstractVector
+    c::AbstractVector
 end
 
 function minimum_volume_ellipsoid(
@@ -27,7 +27,7 @@ function minimum_volume_ellipsoid(
     n, m = size(X)
 
     if centered
-        _, R, ϕ = _minvol(X, tol, KKY, maxit)
+        u, R, ϕ = _minvol(X, tol, KKY, maxit)
 
         H = inv(R.L * R.L' / ϕ)
         x = zeros(n)
@@ -214,7 +214,7 @@ function initwt(X::AbstractMatrix)
         z = Q' * y
 
         if j > 1
-            z[1:(j - 1)] = zeros(j - 1, 1)
+            z[1:(j-1)] = zeros(j - 1, 1)
         end
 
         ζ = norm(z)
@@ -225,7 +225,7 @@ function initwt(X::AbstractMatrix)
         zj += ζ
         z[j] = zj
         Q = Q - (Q * z) * ((1 / (ζ * zj)) * z')
-        d = Q[:, j + 1]
+        d = Q[:, j+1]
     end
 
     u /= n
@@ -238,8 +238,17 @@ function Base.rand(ϵ::Ellipsoid, m::Integer)
     X = X ./ kron(ones(n, 1), sqrt.(sum(X .^ 2; dims=1)))
     R = ones(n, 1) * rand(1, m) .^ (1 / n)
     sphere = R .* X
-    ellipsoid = sqrt(n) * cholesky(inv(ϵ.H)).L * sphere + ϵ.x .* ones(1, m)
+    ellipsoid = sqrt(n) * cholesky(inv(ϵ.H)).L * sphere + ϵ.c .* ones(1, m)
     return ellipsoid
+end
+
+"""
+    in(x::AbstractVector, ϵ::Ellipsoid; tol::Real=1e-6)
+Check if the point `x` is contained inside the ellipsis `ϵ`.
+Will use a default tolerance `tol` of 1e-6.
+"""
+function Base.in(x::AbstractVector, ϵ::Ellipsoid; tol::Real=1e-6)
+    return (x - ϵ.c)' * ϵ.H * (x - ϵ.c) <= length(ϵ.c) + tol
 end
 
 include("volume.jl")
