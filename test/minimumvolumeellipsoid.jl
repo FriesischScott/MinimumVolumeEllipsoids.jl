@@ -29,6 +29,21 @@
         end
     end
 
+    @testset "KKY" begin
+        X = [
+            -1 -1 1 2
+            1 -1 -1 2
+        ]
+        ϵ = minimum_volume_ellipsoid(X, 1e-10, 1)
+
+        @test ϵ.c ≈ [0.5, 0.5] atol = 1e-10
+        @test ϵ.H ≈ [2/3 -2/9; -2/9 2/3] atol = 1e-10
+
+        for x in eachcol(X)
+            @test x in ϵ
+        end
+    end
+
     @testset "Datasets" begin
         @testset "Iris" begin
             using RDatasets
