@@ -49,6 +49,12 @@ U = rand(ϵ, 1000)
 <img src="./doc/images/example-2-12.svg" width="400">
 </div>
 
+Quasi-Monte Carlo samples can be obtained by passing any [*QuasiMonteCarlo.jl*](https://github.com/SciML/QuasiMonteCarlo.jl) sampling method to `rand`.
+
+```julia
+U = rand(ϵ, 1000,QuasiMonteCarlo.HaltonSample())
+```
+
 ## References
 
 Dezert, J., & Musso, C. (2001). An efficient method for generating points uniformly distributed in hyperellipsoids. In _Proceedings of the Workshop on Estimation, Tracking and Fusion: A Tribute to Yaakov Bar-Shalom_.

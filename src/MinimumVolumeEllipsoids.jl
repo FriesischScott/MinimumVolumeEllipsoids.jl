@@ -5,7 +5,7 @@ using LinearAlgebra
 using PDMats
 using SparseArrays
 using SpecialFunctions
-
+using QuasiMonteCarlo
 export Ellipsoid
 
 export minimum_volume_ellipsoid
@@ -16,6 +16,8 @@ struct Ellipsoid
     H::AbstractPDMat
     c::AbstractVector
 end
+
+const Φ = Normal()
 
 function minimum_volume_ellipsoid(
     X::AbstractMatrix,
@@ -232,11 +234,12 @@ function initwt(X::AbstractMatrix)
     return u
 end
 
-function Base.rand(ϵ::Ellipsoid, m::Integer)
+function Base.rand(ϵ::Ellipsoid, m::Integer, qmc::QuasiMonteCarlo.SamplingAlgorithm=QuasiMonteCarlo.RandomSample())
     n = size(ϵ.H, 1)
-    X = randn(n, m)
+    U = QuasiMonteCarlo.sample(m, n + 1, qmc)
+    X = quantile.(Φ, U[1:n, :])
     X = X ./ kron(ones(n, 1), sqrt.(sum(X .^ 2; dims=1)))
-    R = ones(n, 1) * rand(1, m) .^ (1 / n)
+    R = ones(n, 1) * U[n+1, :]' .^ (1 / n)
     sphere = R .* X
     ellipsoid = sqrt(n) * cholesky(inv(ϵ.H)).L * sphere + ϵ.c .* ones(1, m)
     return ellipsoid

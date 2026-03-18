@@ -10,6 +10,11 @@
     @test minimum(U; dims=2) ≈ [-1.0, -1.0] atol = 1e-3
     @test mean(U; dims=2) ≈ [0.0; 0.0] atol = 1e-3
 
+    # QuasiMonteCarlo
+    U = rand(ϵ, 10000, QuasiMonteCarlo.HaltonSample())
+    @test size(U) == (2, 10000)
+    @test all(-1.0 .<= U .<= 1.0)
+
     ϵ = Ellipsoid(PDMat([2 0; 0 2]), [0.5, 0.5])
 
     Random.seed!(8128)
