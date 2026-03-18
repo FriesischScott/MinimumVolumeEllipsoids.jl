@@ -21,7 +21,7 @@ X = [
 
 ϵ = minimum_volume_ellipsoid(X, centered=true)
 ```
-This results in an ellipsoid with the center `ϵ.x`
+This results in an ellipsoid with the center `ϵ.c`
 ```julia
 2-element Vector{Float64}:
  0.0
