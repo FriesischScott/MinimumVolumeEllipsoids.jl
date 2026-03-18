@@ -4,6 +4,7 @@ using PDMats
 using Random
 using Statistics
 using Test
+using QuasiMonteCarlo
 
 include("minimumvolumeellipsoid.jl")
 include("minvol.jl")

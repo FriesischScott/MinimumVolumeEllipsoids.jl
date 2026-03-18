@@ -1,17 +1,19 @@
 name = "MinimumVolumeEllipsoids"
 uuid = "369a3862-bec2-4fd2-abcd-2df79a05ee65"
-authors = ["Jasper Behrensdorf <behrensdorf@irz.uni-hannover.de>"]
 version = "0.2.1"
+authors = ["Jasper Behrensdorf <behrensdorf@irz.uni-hannover.de>"]
 
 [deps]
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 PDMats = "90014a1f-27ba-587c-ab20-58faa44d9150"
+QuasiMonteCarlo = "8a4e6c94-4038-4cdc-81c3-7e6ffdb2a71b"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
 
 [compat]
 Distributions = "0.25"
 PDMats = "0.11"
+QuasiMonteCarlo = "0.3.5"
 SpecialFunctions = "2.0.0"
 julia = "1.10"
